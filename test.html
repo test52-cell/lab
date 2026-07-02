@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>달의 위상변화 시뮬레이션</title>
+<style>
+  :root{
+    --bg:#0b1020;
+    --panel:#141b33;
+    --panel2:#1b2344;
+    --text:#f4f7ff;
+    --muted:#b8c3e0;
+    --accent:#ffd94d;
+    --accent2:#7fd0ff;
+    --shadow:#22283a;
+    --grid:#3a456d;
+    --good:#9cffb0;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family: "Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    background:linear-gradient(180deg,#09101d,#111a32);
+    color:var(--text);
+  }
+  .wrap{
+    max-width:1400px;
+    margin:0 auto;
+    padding:18px;
+  }
+  h1{
+    margin:0 0 10px 0;
+    font-size:clamp(1.6rem,3vw,2.4rem);
+    line-height:1.2;
+  }
+  .subtitle{
+    font-size:clamp(1rem,1.8vw,1.2rem);
+    color:var(--muted);
+    margin-bottom:14px;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap:16px;
+  }
+  .panel{
+    background:rgba(20,27,51,0.92);
+    border:1px solid #273157;
+    border-radius:18px;
+    padding:16px;
+    box-shadow:0 8px 28px rgba(0,0,0,0.22);
+  }
+  .panel h2{
+    margin:0 0 12px 0;
+    font-size:clamp(1.2rem,2.2vw,1.6rem);
+  }
+  .controls{
+    display:grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap:10px;
+    align-items:center;
+    margin-bottom:14px;
+  }
+  .controls .label{
+    font-size:clamp(1rem,1.8vw,1.15rem);
+  }
+  input[type="range"]{
+    width:100%;
+    accent-color:var(--accent);
+    height:34px;
+  }
+  button{
+    border:none;
+    border-radius:12px;
+    padding:12px 16px;
+    font-size:clamp(1rem,1.7vw,1.1rem);
+    font-weight:700;
+    cursor:pointer;
+    color:#111;
+    background:var(--accent);
+  }
+  button.secondary{
+    background:#c8d8ff;
+  }
+  button.dark{
+    background:#91ffd1;
+  }
+  .mini{
+    font-size:clamp(0.95rem,1.6vw,1.05rem);
+    padding:10px 12px;
+  }
+  .canvas-wrap{
+    width:100%;
+    aspect-ratio: 16 / 10;
+    background:radial-gradient(circle at 50% 45%, #101833, #0a0f20 70%);
+    border-radius:16px;
+    border:1px solid #273157;
+    overflow:hidden;
+  }
+  canvas{
+    display:block;
+    width:100%;
+    height:100%;
+  }
+  .info-grid{
+    display:grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap:12px;
+    margin-top:12px;
+  }
+  .info{
+    background:var(--panel2);
+    border:1px solid #2a3764;
+    border-radius:14px;
+    padding:14px;
+  }
+  .info .k{
+    color:var(--muted);
+    font-size:clamp(0.95rem,1.5vw,1rem);
+    margin-bottom:6px;
+  }
+  .info .v{
+    font-size:clamp(1.2rem,2.4vw,1.55rem);
+    font-weight:800;
+    color:#fff7c2;
+  }
+  .right-col{
+    display:grid;
+    gap:16px;
+  }
+  .phase-box{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:10px;
+  }
+  .phase-canvas-wrap{
+    width:100%;
+    aspect-ratio:1/1;
+    background:radial-gradient(circle at 50% 40%, #12193a, #080c18 75%);
+    border-radius:16px;
+    border:1px solid #273157;
+    overflow:hidden;
+  }
+  .legend, .concept{
+    font-size:clamp(0.95rem,1.6vw,1.05rem);
+    color:var(--muted);
+    line-height:1.55;
+  }
+  .concept strong, .legend strong{
+    color:var(--text);
+  }
+  .phase-name{
+    font-size:clamp(1.35rem,2.8vw,1.8rem);
+    font-weight:900;
+    color:#fff4aa;
+  }
+  .graph-wrap{
+    width:100%;
+    aspect-ratio: 16 / 9;
+    background:linear-gradient(180deg,#101733,#0a1021);
+    border-radius:16px;
+    border:1px solid #273157;
+    overflow:hidden;
+  }
+  .footer-tools{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:12px;
+  }
+  .tag{
+    display:inline-block;
+    padding:6px 10px;
+    border-radius:999px;
+    background:#1d2850;
+    border:1px solid #334070;
+    color:#dbe6ff;
+    font-size:clamp(0.9rem,1.4vw,0.98rem);
+  }
+  .highlight{
+    color:var(--good);
+    font-weight:800;
+  }
+  @media (max-width: 980px){
+    .grid{grid-template-columns:1fr}
+    .controls{
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>태양-지구-달의 위치관계에 따른 달의 위상변화</h1>
+  <div class="subtitle">달의 위치를 움직이며 <strong>삭 → 상현 → 망 → 하현 → 삭</strong>으로 이어지는 위상 변화를 직접 확인해 보세요.</div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>1. 위치관계 조작하기</h2>
+
+      <div class="controls">
+        <div class="label"><strong>달의 위치 각도</strong> <span id="angleText">0°</span></div>
+        <button class="secondary mini" id="minusBtn">-15°</button>
+        <button class="secondary mini" id="plusBtn">+15°</button>
+        <button class="dark mini" id="playBtn">자동 재생</button>
+      </div>
+      <input id="angleSlider" type="range" min="0" max="360" step="1" value="0" aria-label="달의 위치 각도">
+
+      <div class="canvas-wrap">
+        <canvas id="orbitCanvas" width="900" height="560"></canvas>
+      </div>
+
+      <div class="info-grid">
+        <div class="info">
+          <div class="k">현재 달의 위상</div>
+          <div class="v" id="phaseName">삭</div>
+        </div>
+        <div class="info">
+          <div class="k">보이는 밝은 부분 비율</div>
+          <div class="v" id="illumText">0%</div>
+        </div>
+        <div class="info">
+          <div class="k">변화 방향</div>
+          <div class="v" id="trendText">점점 차오름</div>
+        </div>
+        <div class="info">
+          <div class="k">관찰 포인트</div>
+          <div class="v" id="noteText">달이 태양 쪽에 있을 때</div>
+        </div>
+      </div>
+
+      <div class="footer-tools">
+        <button id="resetBtn">다시 시작</button>
+        <span class="tag">축과 단위: 그래프의 가로축=달의 위치 각도(°), 세로축=밝은 부분 비율(%)</span>
+        <span class="tag">밝은 면=밝은 노란색, 그림자=어두운 색</span>
+      </div>
+    </div>
+
+    <div class="right-col">
+      <div class="panel phase-box">
+        <h2>2. 지구에서 본 달의 모습</h2>
+        <div class="phase-canvas-wrap">
+          <canvas id="phaseCanvas" width="520" height="520"></canvas>
+        </div>
+        <div class="phase-name" id="phaseNameLarge">삭</div>
+        <div class="legend">
+          <strong>해석:</strong> 달은 항상 반은 태양빛을 받지만, <strong>지구에서 보는 방향</strong>에 따라 밝게 보이는 부분이 달라집니다.
+          그래서 달의 모양이 바뀌는 것처럼 보입니다.
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>3. 그래프로 확인하기</h2>
+        <div class="graph-wrap">
+          <canvas id="graphCanvas" width="900" height="500"></canvas>
+        </div>
+        <div class="concept">
+          <strong>확인할 개념:</strong> 달의 위치 각도가 <span class="highlight">0°에서 180°</span>로 갈수록 밝은 부분이 커져 <strong>삭에서 망</strong>이 됩니다.
+          다시 <span class="highlight">180°에서 360°</span>로 가면 밝은 부분이 줄어들어 <strong>망에서 삭</strong>이 됩니다.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const orbitCanvas = document.getElementById('orbitCanvas');
+  const orbitCtx = orbitCanvas.getContext('2d');
+
+  const phaseCanvas = document.getElementById('phaseCanvas');
+  const phaseCtx = phaseCanvas.getContext('2d');
+
+  const graphCanvas = document.getElementById('graphCanvas');
+  const graphCtx = graphCanvas.getContext('2d');
+
+  const slider = document.getElementById('angleSlider');
+  const angleText = document.getElementById('angleText');
+  const phaseName = document.getElementById('phaseName');
+  const phaseNameLarge = document.getElementById('phaseNameLarge');
+  const illumText = document.getElementById('illumText');
+  const trendText = document.getElementById('trendText');
+  const noteText = document.getElementById('noteText');
+
+  const minusBtn = document.getElementById('minusBtn');
+  const plusBtn = document.getElementById('plusBtn');
+  const playBtn = document.getElementById('playBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  let angle = 0; // 0°: 삭(달이 태양과 지구 사이)
+  let playing = false;
+  let animId = null;
+
+  function degToRad(d){ return d * Math.PI / 180; }
+  function clampAngle(a){
+    a = a % 360;
+    if(a < 0) a += 360;
+    return a;
+  }
+  function illuminatedFraction(thetaDeg){
+    const t = degToRad(thetaDeg);
+    return (1 - Math.cos(t)) / 2;
+  }
+  function getPhaseName(thetaDeg){
+    const a = clampAngle(thetaDeg);
+    const phases = [
+      {name:'삭', center:0},
+      {name:'초승달', center:45},
+      {name:'상현달', center:90},
+      {name:'상현망간의 달', center:135},
+      {name:'망', center:180},
+      {name:'하현망간의 달', center:225},
+      {name:'하현달', center:270},
+      {name:'그믐달', center:315},
+      {name:'삭', center:360}
+    ];
+    let best = phases[0], bestDiff = 999;
+    for(const p of phases){
+      let diff = Math.abs(a - p.center);
+      diff = Math.min(diff, 360 - diff);
+      if(diff < bestDiff){
+        bestDiff = diff;
+        best = p;
+      }
+    }
+    return best.name;
+  }
+  function getTrend(thetaDeg){
+    const a = clampAngle(thetaDeg);
+    if (a === 0 || a === 180) return a === 0 ? '가장 어두움' : '가장 밝음';
+    return a > 0 && a < 180 ? '점점 차오름' : '점점 이지러짐';
+  }
+  function getNote(thetaDeg){
+    const a = clampAngle(thetaDeg);
+    if(a < 22.5 || a >= 337.5) return '달이 태양 쪽에 있을 때';
+    if(a < 67.5) return '오른쪽이 조금 밝아짐';
+    if(a < 112.5) return '오른쪽 반이 밝음';
+    if(a < 157.5) return '밝은 부분이 절반보다 큼';
+    if(a < 202.5) return '지구가 달과 태양 사이';
+    if(a < 247.5) return '왼쪽이 많이 밝음';
+    if(a < 292.5) return '왼쪽 반이 밝음';
+    return '왼쪽이 조금 밝고 곧 삭';
+  }
+
+  function updateUI(){
+    angle = clampAngle(Number(slider.value));
+    const frac = illuminatedFraction(angle);
+    const pName = getPhaseName(angle);
+
+    angleText.textContent = `${Math.round(angle)}°`;
+    phaseName.textContent = pName;
+    phaseNameLarge.textContent = pName;
+    illumText.textContent = `${Math.round(frac * 100)}%`;
+    trendText.textContent = getTrend(angle);
+    noteText.textContent = getNote(angle);
+
+    drawOrbit();
+    drawPhase();
+    drawGraph();
+  }
+
+  function drawOrbit(){
+    const ctx = orbitCtx;
+    const w = orbitCanvas.width;
+    const h = orbitCanvas.height;
+    ctx.clearRect(0,0,w,h);
+
+    // 배경 별
+    const grad = ctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0,'#0e1430');
+    grad.addColorStop(1,'#080d1d');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,w,h);
+
+    for(let i=0;i<70;i++){
+      const x = (i * 127) % w;
+      const y = (i * 79 + 30) % h;
+      const r = (i % 3) + 0.6;
+      ctx.fillStyle = i % 5 === 0 ? '#fff2ad' : '#dbe6ff';
+      ctx.globalAlpha = 0.45 + (i % 4) * 0.12;
+      ctx.beginPath();
+      ctx.arc(x,y,r,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    const cx = w * 0.52;
+    const cy = h * 0.52;
+    const orbitR = Math.min(w,h) * 0.28;
+
+    const sunX = w * 0.88;
+    const sunY = cy;
+    const earthR = 34;
+    const moonR = 14;
+
+    // 태양빛 방향 표시
+    ctx.strokeStyle = 'rgba(255,217,77,0.75)';
+    ctx.fillStyle = 'rgba(255,217,77,0.75)';
+    ctx.lineWidth = 4;
+    for(let i=-2;i<=2;i++){
+      const y = cy + i * 44;
+      drawArrow(ctx, sunX - 28, y, cx - orbitR - 45, y);
+    }
+
+    // 궤도
+    ctx.setLineDash([10,10]);
+    ctx.strokeStyle = '#506196';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, orbitR, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 지구
+    drawEarth(ctx, cx, cy, earthR);
+
+    // 태양
+    drawSun(ctx, sunX, sunY, 52);
+
+    // 달 위치
+    const t = degToRad(angle);
+    const moonX = cx + orbitR * Math.cos(t);
+    const moonY = cy - orbitR * Math.sin(t);
+
+    // 지구-달 선
+    ctx.strokeStyle = '#a6b8ec';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(moonX, moonY);
+    ctx.stroke();
+
+    // 각도 기준선
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + orbitR + 30, cy);
+    ctx.stroke();
+
+    // 각도 호
+    ctx.strokeStyle = '#ffd94d';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 56, 0, -t, true);
+    ctx.stroke();
+
+    // 달 (위치도에서는 밝은 쪽이 태양 방향)
+    drawMoonInOrbit(ctx, moonX, moonY, moonR, sunX, sunY);
+
+    // 라벨
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px sans-serif';
+    ctx.fillText('지구', cx - 26, cy + 6);
+    ctx.fillText('태양', sunX - 28, sunY + 6);
+
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillStyle = '#f6f0bd';
+    ctx.fillText('달', moonX + 18, moonY - 12);
+
+    // 축 설명
+    ctx.fillStyle = '#d6e2ff';
+    ctx.font = '24px sans-serif';
+    ctx.fillText('달의 위치 각도 기준: 0°(삭), 90°(상현달), 180°(망), 270°(하현달)', 34, 42);
+
+    // 기준 각도 표시
+    ctx.font = '22px sans-serif';
+    ctx.fillStyle = '#b9c8f0';
+    ctx.fillText('0°', cx + orbitR + 8, cy - 8);
+    ctx.fillText('90°', cx - 16, cy - orbitR - 16);
+    ctx.fillText('180°', cx - orbitR - 58, cy - 8);
+    ctx.fillText('270°', cx - 20, cy + orbitR + 30);
+
+    // 태양빛 설명
+    ctx.fillStyle = '#ffe48c';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText('태양빛의 방향', sunX - 190, cy - 112);
+  }
+
+  function drawArrow(ctx, x1, y1, x2, y2){
+    const head = 12;
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const ang = Math.atan2(dy, dx);
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x2,y2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x2,y2);
+    ctx.lineTo(x2 - head * Math.cos(ang - Math.PI/6), y2 - head * Math.sin(ang - Math.PI/6));
+    ctx.lineTo(x2 - head * Math.cos(ang + Math.PI/6), y2 - head * Math.sin(ang + Math.PI/6));
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawSun(ctx, x, y, r){
+    const g = ctx.createRadialGradient(x,y,8,x,y,r+22);
+    g.addColorStop(0,'#fff7a8');
+    g.addColorStop(0.6,'#ffd94d');
+    g.addColorStop(1,'rgba(255,217,77,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x,y,r+22,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffd94d';
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#ffe98f';
+    ctx.lineWidth = 4;
+    for(let i=0;i<12;i++){
+      const a = i * Math.PI / 6;
+      ctx.beginPath();
+      ctx.moveTo(x + Math.cos(a)*(r+8), y + Math.sin(a)*(r+8));
+      ctx.lineTo(x + Math.cos(a)*(r+25), y + Math.sin(a)*(r+25));
+      ctx.stroke();
+    }
+  }
+
+  function drawEarth(ctx, x, y, r){
+    const g = ctx.createRadialGradient(x-r*0.3,y-r*0.35,4,x,y,r);
+    g.addColorStop(0,'#a5ddff');
+    g.addColorStop(0.45,'#4287f5');
+    g.addColorStop(1,'#173c88');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = '#67d684';
+    ctx.beginPath();
+    ctx.ellipse(x-7,y-6,11,6,0.3,0,Math.PI*2);
+    ctx.ellipse(x+8,y+5,8,5,-0.6,0,Math.PI*2);
+    ctx.ellipse(x-2,y+11,7,4,0.2,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.stroke();
+  }
+
+  function drawMoonInOrbit(ctx, x, y, r, sunX, sunY){
+    ctx.fillStyle = '#22283a';
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fill();
+
+    const ang = Math.atan2(sunY-y, sunX-x);
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(ang);
+    ctx.fillStyle = '#ffe45d';
+    ctx.beginPath();
+    ctx.arc(0,0,r, -Math.PI/2, Math.PI/2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = '#cfd8ff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.stroke();
+  }
+
+  function drawPhase(){
+    const ctx = phaseCtx;
+    const w = phaseCanvas.width;
+    const h = phaseCanvas.height;
+    ctx.clearRect(0,0,w,h);
+
+    const bg = ctx.createRadialGradient(w*0.5,h*0.42,20,w*0.5,h*0.5,w*0.5);
+    bg.addColorStop(0,'#121a3d');
+    bg.addColorStop(1,'#080c18');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0,0,w,h);
+
+    // 별
+    for(let i=0;i<40;i++){
+      const x = (i * 97) % w;
+      const y = (i * 61 + 18) % h;
+      ctx.fillStyle = i % 6 === 0 ? '#fff0a0' : '#dbe6ff';
+      ctx.globalAlpha = 0.35 + (i % 3) * 0.2;
+      ctx.beginPath();
+      ctx.arc(x,y,(i%2)+1,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    const cx = w/2;
+    const cy = h/2;
+    const R = Math.min(w,h)*0.28;
+
+    // 외곽 빛
+    const glow = ctx.createRadialGradient(cx,cy,R*0.4,cx,cy,R*1.5);
+    glow.addColorStop(0,'rgba(255,217,77,0.08)');
+    glow.addColorStop(1,'rgba(255,217,77,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(cx,cy,R*1.5,0,Math.PI*2);
+    ctx.fill();
+
+    // 달 원반 그림자
+    ctx.fillStyle = '#22283a';
+    ctx.beginPath();
+    ctx.arc(cx,cy,R,0,Math.PI*2);
+    ctx.fill();
+
+    // 픽셀 기반으로 밝은 부분 계산
+    const img = ctx.getImageData(0,0,w,h);
+    const data = img.data;
+
+    const theta = degToRad(angle);
+    const sx = Math.sin(theta);
+    const sy = 0;
+    const sz = -Math.cos(theta);
+
+    const bright = {r:255,g:227,b:93};
+    const dark = {r:34,g:40,b:58};
+
+    const startX = Math.floor(cx - R - 1);
+    const endX = Math.ceil(cx + R + 1);
+    const startY = Math.floor(cy - R - 1);
+    const endY = Math.ceil(cy + R + 1);
+
+    for(let py=startY; py<=endY; py++){
+      for(let px=startX; px<=endX; px++){
+        const dx = (px + 0.5 - cx) / R;
+        const dy = (py + 0.5 - cy) / R;
+        const rr = dx*dx + dy*dy;
+        if(rr <= 1){
+          const dz = Math.sqrt(1 - rr);
+          const dot = dx*sx + dy*sy + dz*sz; // 태양빛을 받는지
+          const lit = dot > 0;
+
+          const idx = (py*w + px) * 4;
+          let r,g,b;
+          if(lit){
+            const edge = 0.2 + 0.8 * dz;
+            r = bright.r * edge;
+            g = bright.g * edge;
+            b = bright.b * edge;
+          }else{
+            const edge = 0.32 + 0.38 * dz;
+            r = dark.r * edge;
+            g = dark.g * edge;
+            b = dark.b * edge;
+          }
+          data[idx] = Math.max(0, Math.min(255, Math.round(r)));
+          data[idx+1] = Math.max(0, Math.min(255, Math.round(g)));
+          data[idx+2] = Math.max(0, Math.min(255, Math.round(b)));
+          data[idx+3] = 255;
+        }
+      }
+    }
+
+    ctx.putImageData(img,0,0);
+
+    // 경계선
+    ctx.strokeStyle = 'rgba(230,240,255,0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx,cy,R,0,Math.PI*2);
+    ctx.stroke();
+
+    // 태양빛 방향 표시
+    ctx.fillStyle = '#ffe48c';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('지구에서 본 달', 24, 34);
+
+    ctx.strokeStyle = 'rgba(255,217,77,0.8)';
+    ctx.fillStyle = 'rgba(255,217,77,0.8)';
+    ctx.lineWidth = 3;
+    drawArrow(ctx, w-40, 58, w-150, 58);
+    ctx.fillText('태양빛', w-128, 46);
+  }
+
+  function drawGraph(){
+    const ctx = graphCtx;
+    const w = graphCanvas.width;
+    const h = graphCanvas.height;
+    ctx.clearRect(0,0,w,h);
+
+    const bg = ctx.createLinearGradient(0,0,0,h);
+    bg.addColorStop(0,'#0f1630');
+    bg.addColorStop(1,'#0a1020');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0,0,w,h);
+
+    const left = 84, right = 26, top = 30, bottom = 66;
+    const gw = w - left - right;
+    const gh = h - top - bottom;
+
+    // 격자
+    ctx.strokeStyle = '#3a456d';
+    ctx.lineWidth = 1;
+    ctx.font = '22px sans-serif';
+    ctx.fillStyle = '#d7e2ff';
+    ctx.textAlign = 'center';
+
+    for(let x=0; x<=360; x+=45){
+      const px = left + gw * (x/360);
+      ctx.beginPath();
+      ctx.moveTo(px, top);
+      ctx.lineTo(px, top+gh);
+      ctx.stroke();
+      ctx.fillText(String(x), px, h-26);
+    }
+
+    ctx.textAlign = 'right';
+    for(let y=0; y<=100; y+=25){
+      const py = top + gh * (1 - y/100);
+      ctx.beginPath();
+      ctx.moveTo(left, py);
+      ctx.lineTo(left+gw, py);
+      ctx.stroke();
+      ctx.fillText(String(y), left-12, py+8);
+    }
+
+    // 축
+    ctx.strokeStyle = '#f0f4ff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(left, top);
+    ctx.lineTo(left, top+gh);
+    ctx.lineTo(left+gw, top+gh);
+    ctx.stroke();
+
+    // 축 라벨
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('달의 위치 각도 (°)', left + gw/2, h-6);
+
+    ctx.save();
+    ctx.translate(28, top + gh/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText('밝은 부분 비율 (%)', 0, 0);
+    ctx.restore();
+
+    // 곡선
+    ctx.strokeStyle = '#ffd94d';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    for(let a=0;a<=360;a++){
+      const x = left + gw*(a/360);
+      const y = top + gh*(1 - illuminatedFraction(a));
+      if(a===0) ctx.moveTo(x,y);
+      else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    // 채우기
+    ctx.fillStyle = 'rgba(255,217,77,0.16)';
+    ctx.beginPath();
+    ctx.moveTo(left, top+gh);
+    for(let a=0;a<=360;a++){
+      const x = left + gw*(a/360);
+      const y = top + gh*(1 - illuminatedFraction(a));
+      ctx.lineTo(x,y);
+    }
+    ctx.lineTo(left+gw, top+gh);
+    ctx.closePath();
+    ctx.fill();
+
+    // 주요 위상 표시
+    const marks = [
+      {a:0, name:'삭'},
+      {a:90, name:'상현달'},
+      {a:180, name:'망'},
+      {a:270, name:'하현달'},
+      {a:360, name:'삭'}
+    ];
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillStyle = '#bde2ff';
+    ctx.textAlign = 'center';
+    for(const m of marks){
+      const x = left + gw*(m.a/360);
+      const y = top + gh*(1 - illuminatedFraction(m.a));
+      ctx.beginPath();
+      ctx.fillStyle = '#7fd0ff';
+      ctx.arc(x,y,6,0,Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#dce8ff';
+      ctx.fillText(m.name, x, Math.max(20, y-14));
+    }
+
+    // 현재 값
+    const cx = left + gw*(angle/360);
+    const cy = top + gh*(1 - illuminatedFraction(angle));
+    ctx.strokeStyle = '#ff8fb1';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8,8]);
+    ctx.beginPath();
+    ctx.moveTo(cx
